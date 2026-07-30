@@ -36,12 +36,13 @@ func main() {
 	}
 	apiKey := os.Getenv("API_KEY")
 	baseURL := os.Getenv("API_BASE_URL")
+	model := os.Getenv("MODEL")
 	var msg string
 	var messages []map[string]string
 	history := true
 	readSystemPrompt(&messages)
+	scanner := bufio.NewScanner(os.Stdin)
 	for true {
-		scanner := bufio.NewScanner(os.Stdin)
 		fmt.Print(">")
 
 		if scanner.Scan() {
@@ -60,7 +61,7 @@ func main() {
 				message["content"] = input
 				if history {
 					messages = append(messages, message)
-					msg, err = callAI(&messages, &apiKey, &baseURL)
+					msg, err = callAI(&messages, &apiKey, &baseURL, &model)
 					if err != nil {
 						msg = err.Error()
 					} else {
@@ -73,7 +74,7 @@ func main() {
 					var temp []map[string]string
 					readSystemPrompt(&temp)
 					temp = append(temp, message)
-					msg, err = callAI(&temp, &apiKey, &baseURL)
+					msg, err = callAI(&temp, &apiKey, &baseURL, &model)
 					if err != nil {
 						msg = err.Error()
 					}
@@ -103,9 +104,9 @@ func readSystemPrompt(messages *[]map[string]string) {
 
 }
 
-func callAI(messages *[]map[string]string, apiKey *string, baseURL *string) (string, error) {
+func callAI(messages *[]map[string]string, apiKey *string, baseURL *string, model *string) (string, error) {
 	postBody, err := json.Marshal(map[string]any{
-		"model":    "openrouter/free",
+		"model":    *model,
 		"messages": *messages,
 		"stream":   false,
 	})
