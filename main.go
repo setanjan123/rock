@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -71,6 +72,9 @@ func callAI(message string, apiKey *string, baseURL *string) (string, error) {
 	responseBody := bytes.NewBuffer(postBody)
 	//Leverage Go's HTTP Post function to make request
 	resp, err := http.NewRequest(http.MethodPost, *baseURL, responseBody)
+	if err != nil {
+		return "", err
+	}
 	resp.Header.Add("Content-Type", "application/json")
 	resp.Header.Add("Authorization", "Bearer "+*apiKey)
 
@@ -78,17 +82,25 @@ func callAI(message string, apiKey *string, baseURL *string) (string, error) {
 
 	//Handle Error
 	if err != nil {
-		log.Fatalf("An Error Occured %v", err)
+		return "", err
 	}
+
 	defer response.Body.Close()
 	//Read the response body
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
-		log.Fatalln(err)
+		return "", err
+	}
+
+	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		return "", errors.New(string(body))
 	}
 	var result ChatCompletionResponse
 	if err := json.Unmarshal(body, &result); err != nil { // Parse []byte to go struct pointer
-		fmt.Println("Can not unmarshal JSON")
+		return "", err
+	}
+	if len(result.Choices) < 1 {
+		return "", errors.New("Empty response")
 	}
 	return result.Choices[0].Message.Content, nil
 }
