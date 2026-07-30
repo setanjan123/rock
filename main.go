@@ -38,6 +38,7 @@ func main() {
 	baseURL := os.Getenv("API_BASE_URL")
 	var msg string
 	var messages []map[string]string
+	history := true
 	readSystemPrompt(&messages)
 	for true {
 		scanner := bufio.NewScanner(os.Stdin)
@@ -45,25 +46,42 @@ func main() {
 
 		if scanner.Scan() {
 			input := scanner.Text()
-			if input == "/exit" {
+			switch input {
+			case "/exit":
 				return
-			}
-			fmt.Println("Processing....")
-			message := make(map[string]string)
-			message["role"] = "user"
-			message["content"] = input
-			messages = append(messages, message)
-			msg, err = callAI(&messages, &apiKey, &baseURL)
-			if err != nil {
-				msg = err.Error()
-			} else {
+			case "/history on":
+				history = true
+			case "/history off":
+				history = false
+			default:
+				fmt.Println("Processing....")
 				message := make(map[string]string)
-				message["role"] = "assistant"
-				message["content"] = msg
-				messages = append(messages, message)
+				message["role"] = "user"
+				message["content"] = input
+				if history {
+					messages = append(messages, message)
+					msg, err = callAI(&messages, &apiKey, &baseURL)
+					if err != nil {
+						msg = err.Error()
+					} else {
+						message := make(map[string]string)
+						message["role"] = "assistant"
+						message["content"] = msg
+						messages = append(messages, message)
+					}
+				} else {
+					var temp []map[string]string
+					readSystemPrompt(&temp)
+					temp = append(temp, message)
+					msg, err = callAI(&temp, &apiKey, &baseURL)
+					if err != nil {
+						msg = err.Error()
+					}
+				}
+				fmt.Println(msg)
 			}
+
 		}
-		fmt.Println(msg)
 	}
 }
 
