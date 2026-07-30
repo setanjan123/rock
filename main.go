@@ -34,9 +34,9 @@ func main() {
 	}
 	apiKey := os.Getenv("API_KEY")
 	baseURL := os.Getenv("API_BASE_URL")
-	msg := "Hello. Send your message."
+	var msg string
+	var messages []map[string]string
 	for true {
-		fmt.Println(msg)
 		scanner := bufio.NewScanner(os.Stdin)
 		fmt.Print(">")
 
@@ -46,24 +46,29 @@ func main() {
 				return
 			}
 			fmt.Println("Processing....")
-			msg, err = callAI(input, &apiKey, &baseURL)
+			message := make(map[string]string)
+			message["role"] = "user"
+			message["content"] = input
+			messages = append(messages, message)
+			msg, err = callAI(&messages, &apiKey, &baseURL)
 			if err != nil {
 				msg = err.Error()
+			} else {
+				message := make(map[string]string)
+				message["role"] = "assistant"
+				message["content"] = msg
+				messages = append(messages, message)
 			}
 		}
+		fmt.Println(msg)
 	}
 }
 
-func callAI(message string, apiKey *string, baseURL *string) (string, error) {
+func callAI(messages *[]map[string]string, apiKey *string, baseURL *string) (string, error) {
 	postBody, err := json.Marshal(map[string]any{
-		"model": "openrouter/free",
-		"messages": []map[string]string{
-			{
-				"role":    "user",
-				"content": message,
-			},
-		},
-		"stream": false,
+		"model":    "openrouter/free",
+		"messages": *messages,
+		"stream":   false,
 	})
 	if err != nil {
 		return "", err
