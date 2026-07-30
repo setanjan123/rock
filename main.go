@@ -10,12 +10,14 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
 
 type ChatCompletionResponse struct {
 	Choices []Choice `json:"choices"`
+	Model   string   `json:"model"`
 }
 
 type Choice struct {
@@ -36,6 +38,7 @@ func main() {
 	baseURL := os.Getenv("API_BASE_URL")
 	var msg string
 	var messages []map[string]string
+	readSystemPrompt(&messages)
 	for true {
 		scanner := bufio.NewScanner(os.Stdin)
 		fmt.Print(">")
@@ -62,6 +65,24 @@ func main() {
 		}
 		fmt.Println(msg)
 	}
+}
+
+func readSystemPrompt(messages *[]map[string]string) {
+	// Read the entire file into memory
+	content, err := os.ReadFile("system.md")
+	if err != nil && !os.IsNotExist(err) {
+		fmt.Println("Error reading system prompt", err.Error())
+		return
+	}
+	systemprompt := strings.TrimSpace(string(content))
+
+	if systemprompt != "" {
+		message := make(map[string]string)
+		message["role"] = "system"
+		message["content"] = systemprompt
+		*messages = append(*messages, message)
+	}
+
 }
 
 func callAI(messages *[]map[string]string, apiKey *string, baseURL *string) (string, error) {
@@ -107,5 +128,6 @@ func callAI(messages *[]map[string]string, apiKey *string, baseURL *string) (str
 	if len(result.Choices) < 1 {
 		return "", errors.New("Empty response")
 	}
+	fmt.Println("model: " + result.Model)
 	return result.Choices[0].Message.Content, nil
 }
