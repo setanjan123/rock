@@ -1,4 +1,4 @@
-module basicagent
+module rockcli
 
 go 1.25.4
 

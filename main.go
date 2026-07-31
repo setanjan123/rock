@@ -39,7 +39,6 @@ func main() {
 	model := os.Getenv("MODEL")
 	var msg string
 	var messages []map[string]string
-	history := true
 	readSystemPrompt(&messages)
 	scanner := bufio.NewScanner(os.Stdin)
 	for true {
@@ -50,34 +49,20 @@ func main() {
 			switch input {
 			case "/exit":
 				return
-			case "/history on":
-				history = true
-			case "/history off":
-				history = false
 			default:
 				fmt.Println("Processing....")
 				message := make(map[string]string)
 				message["role"] = "user"
 				message["content"] = input
-				if history {
-					messages = append(messages, message)
-					msg, err = callAI(&messages, &apiKey, &baseURL, &model)
-					if err != nil {
-						msg = err.Error()
-					} else {
-						message := make(map[string]string)
-						message["role"] = "assistant"
-						message["content"] = msg
-						messages = append(messages, message)
-					}
+				messages = append(messages, message)
+				msg, err = callAI(&messages, &apiKey, &baseURL, &model)
+				if err != nil {
+					msg = err.Error()
 				} else {
-					var temp []map[string]string
-					readSystemPrompt(&temp)
-					temp = append(temp, message)
-					msg, err = callAI(&temp, &apiKey, &baseURL, &model)
-					if err != nil {
-						msg = err.Error()
-					}
+					message := make(map[string]string)
+					message["role"] = "assistant"
+					message["content"] = msg
+					messages = append(messages, message)
 				}
 				fmt.Println(msg)
 			}
