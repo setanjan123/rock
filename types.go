@@ -54,6 +54,15 @@ type ListDirectoryArgs struct {
 	Path string `json:"path"`
 }
 
+type ReadFileArgs struct {
+	Path string `json:"path"`
+}
+
+type WriteFileArgs struct {
+	Path     string `json:"path"`
+	Contents string `json:"contents"`
+}
+
 type ListDirectoryResult struct {
 	Path    string   `json:"path"`
 	Entries []string `json:"entries"`

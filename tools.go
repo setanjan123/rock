@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"os"
@@ -12,6 +13,10 @@ func call_tool(tool_call ToolCall) (string, error) {
 		return current_directory()
 	case "list_directory":
 		return list_directory(tool_call.Function.Arguments)
+	case "read_file":
+		return read_file(tool_call.Function.Arguments)
+	case "write_file":
+		return write_file(tool_call.Function.Arguments)
 	default:
 		return "", errors.New("Invalid tool call")
 	}
@@ -62,6 +67,46 @@ func get_tools() []ToolDefinition {
 				},
 			},
 		},
+		{
+			Type: "function",
+			Function: FunctionDefinition{
+				Name:        "read_file",
+				Description: "Returns the contents of a file",
+				Parameters: ToolParameters{
+					Type: "object",
+					Properties: map[string]ToolProperty{
+						"path": {
+							Type:        "string",
+							Description: "The path to the file",
+						},
+					},
+					Required:             []string{"path"},
+					AdditionalProperties: false,
+				},
+			},
+		},
+		{
+			Type: "function",
+			Function: FunctionDefinition{
+				Name:        "write_file",
+				Description: "Write a file",
+				Parameters: ToolParameters{
+					Type: "object",
+					Properties: map[string]ToolProperty{
+						"path": {
+							Type:        "string",
+							Description: "The path to the file",
+						},
+						"contents": {
+							Type:        "string",
+							Description: "The contents of the file",
+						},
+					},
+					Required:             []string{"path", "contents"},
+					AdditionalProperties: false,
+				},
+			},
+		},
 	}
 	return tools
 }
@@ -103,4 +148,69 @@ func list_directory(path string) (string, error) {
 		return "", err
 	}
 	return string(encoded), nil
+}
+
+func read_file(path string) (string, error) {
+	var args ReadFileArgs
+	err := json.Unmarshal([]byte(path), &args)
+	if err != nil {
+		return "", err
+	}
+
+	if args.Path == "" {
+		return "", errors.New("path is required")
+	}
+
+	file, err := os.Open(args.Path)
+	if err != nil {
+		return "", err
+	}
+
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	var fileContent string
+	for scanner.Scan() {
+		// Read current line as a string
+		line := scanner.Text()
+		fileContent = fileContent + "\n" + line
+	}
+
+	// Check for any errors encountered during scanning
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+
+	return fileContent, nil
+}
+
+func write_file(args string) (string, error) {
+	var writeFileArgs WriteFileArgs
+	err := json.Unmarshal([]byte(args), &writeFileArgs)
+	if err != nil {
+		return "", err
+	}
+
+	if writeFileArgs.Path == "" {
+		return "", errors.New("path is required")
+	}
+
+	if writeFileArgs.Contents == "" {
+		return "", errors.New("contents is required")
+	}
+
+	file, err := os.Create(writeFileArgs.Path)
+	if err != nil {
+		return "", err
+	}
+
+	defer file.Close()
+
+	_, err = file.WriteString(writeFileArgs.Contents)
+
+	if err != nil {
+		return "", err
+	}
+
+	return "Write Success!", nil
 }
