@@ -1,49 +1,108 @@
+# Rock
+
+Rock is a small command-line coding agent written in Go. It was built as a learning project to explore how an LLM agent works internally: conversation history, tool definitions, tool calls, local execution, and the agent loop.
+
+## What it can do
+
+- Maintain an in-memory conversation with an LLM.
+- Communicate with an OpenAI-compatible chat-completions endpoint.
+- Load an optional system prompt from `system.md`.
+- Discover the current directory.
+- List directory contents.
+- Read files.
+- Create or overwrite files.
+- Execute multiple requested tool calls concurrently while preserving their original order.
+
+## How it works
+
+```text
+User input
+    ↓
+LLM request with conversation history and tool definitions
+    ↓
+Assistant response
+    ├── normal text → display it
+    └── tool calls  → execute tools → add results to history
+                                      ↓
+                                  ask the LLM again
+```
+
+The project uses the OpenAI-compatible message and tool-calling format, so it can work with a local or remote compatible backend.
+
+## Setup
+
+Create a `.env` file in the project directory. It is ignored by Git.
+
+```dotenv
+API_KEY=your-api-key
+API_BASE_URL=your-openai-compatible-chat-completions-url
+MODEL=your-model-name
+```
+
+For a local Ollama setup, the URL is commonly similar to:
+
+```dotenv
+API_BASE_URL=http://localhost:11434/v1/chat/completions
+```
+
+Install dependencies and run Rock:
+
+```bash
+go mod tidy
+go run .
+```
+
+Use `/exit` to leave the conversation.
+
+## Available tools
+
+| Tool | Purpose |
+| --- | --- |
+| `current_directory` | Returns the directory where Rock is running. |
+| `list_directory` | Lists the entries in a directory. |
+| `read_file` | Returns the contents of a file. |
+| `write_file` | Creates or overwrites a file. |
+
+## Project structure
+
+| File | Purpose |
+| --- | --- |
+| `main.go` | Application startup, user loop, and LLM communication. |
+| `tools.go` | Tool definitions, dispatch, concurrency, and filesystem operations. |
+| `types.go` | Request, response, tool-call, and argument structs. |
+| `util.go` | System-prompt loading and response handling. |
+| `system.md` | Optional system instructions for the model. |
+| `go.mod` / `go.sum` | Go module and dependency metadata. |
+| `.gitignore` | Excludes local secrets, history, and cache files. |
+
+## Current scope
+
+Rock is intentionally small and educational. Conversation history exists only in memory, and the project does not yet include shell-command execution, persistent sessions, permission prompts, or advanced context management.
+
+## A model-generated self-summary
+
+I used Gemma 4 E4B running via Ollama and used Rock itself to generate its own summary:
+
+~~~text
 | Rock v0.01 |
 
 ────────────────────────────────────────
-You › Hello
+You › Summarise the project in the current directory.
 ────────────────────────────────────────
 Agent is thinking...
 
 Agent ›
-Hello! How can I help you today?
-
-────────────────────────────────────────
-You › I want you to read the contents of all the files in this directory and then summarise it
-────────────────────────────────────────
-Agent is thinking...
-
-Agent ›
-Based on the contents of the files, here is a comprehensive summary of the project.
-
-### Project Summary: Rock CLI AI Agent
-
-**Purpose:**
-This repository contains "Rock," a basic Command Line Interface (CLI) based AI agent designed to interact with OpenAI-compatible inference servers. The primary goal of the developer was to learn how AI agents function by building a working example.
-
-**Core Functionality (`main.go`):**
-The `main.go` file is the heart of the application. It manages:
-1.  **Initialization:** Loads environment variables from `.env`.
-2.  **User Interaction Loop:** Presents a continuous user prompt (`You ›`) and takes input command by command, allowing the agent to function conversationally using a history of messages.
-3.  **AI Communication:** Calls an external API (`call_ai`) using the provided chat completion endpoint (`API_BASE_URL`). It sends the current conversation context (system prompt + user inputs) and available tool definitions (`get_tools`).
-4.  **Response Handling:** Processes the AI's response, which can either be a natural language reply or structured data indicating that a function/tool call is required (handled by `handle_response`).
-
-**Technical Stack & Dependencies:**
-*   **Language:** Go (Golang).
-*   **Dependencies:** Uses `github.com/joho/godotenv` to load environment variables.
-*   **API Compatibility:** Built to interact with models exposed via a standard OpenAI Chat Completion API schema.
-*   **Execution Flow:** It reads the system context, prepares available tools, and then enters an infinite loop waiting for user input or tool execution cycles.
+This document provides a comprehensive summary of the "Rock" project repository, detailing its purpose, architecture, and the specific role of every significant file.
 
 ***
 
-### File Breakdown Summary
+## ⚙️ Project Overview: Rock CLI AI Agent
 
-| File | Role / Contents | Notes |
-| :--- | :--- | :--- |
-| **`main.go`** | **Core Logic.** Contains the main execution loop, API calling mechanism (`call_ai`), and control flow for user interaction. | The primary source code. |
-| **`README.md`**| **Project Overview.** A brief description stating that Rock is a basic CLI AI agent built for learning purposes. | High-level documentation. |
-| **`go.mod`** | **Module Definition.** Specifies the project module (`rockcli`) and its required Go version/dependencies (e.g., `godotenv`). | Used by a Go developer for dependency management. |
-| **`.gitignore`** | Configuration file detailing files that should be ignored by Git (like `.env`, cache files). | Standard VCS configuration. |
-| **`go.sum`** | Contains cryptographic checksums for the project's dependencies, ensuring integrity. | Dependency integrity file. |
+**Purpose:**
+The repository contains "Rock," a highly functional Command Line Interface (CLI) program designed to operate as an AI agent. Its primary goal is educational—to build a working proof-of-concept demonstrating how a conversational LLM model can be augmented with local system capabilities (tools) via structured API calls.
 
-────────────────────────────────────────
+**Core Functionality:**
+The agent runs in a continuous loop, maintaining conversation history. On each turn, it sends the context and definitions of its available **Tools** to an external AI API. The API responds either with a text answer or a request to execute one or more functions (tools). The `main.go` then catches this request, executes the local shell commands defined in `tools.go`, passes the results back to the LLM for final context integration, and continues the conversation.
+
+***
+~~~
