@@ -1,5 +1,13 @@
 package main
 
+type ChatCompletionRequest struct {
+	Model      string           `json:"model"`
+	Messages   []map[string]any `json:"messages"`
+	Tools      []ToolDefinition `json:"tools"`
+	ToolChoice string           `json:"tool_choice"`
+	Stream     bool             `json:"stream"`
+}
+
 type ChatCompletionResponse struct {
 	Choices []Choice `json:"choices"`
 	Model   string   `json:"model"`
