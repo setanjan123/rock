@@ -7,24 +7,14 @@ import (
 )
 
 func call_tool(tool_call ToolCall) (string, error) {
-	tool_name := tool_call.Function.Name
-	tool_args := tool_call.Function.Arguments
-	switch tool_name {
+	switch tool_call.Function.Name {
 	case "current_directory":
 		return current_directory()
 	case "list_directory":
-		result, err := list_directory(tool_args)
-		if err != nil {
-			return "", err
-		}
-
-		encoded, err := json.Marshal(result)
-		if err != nil {
-			return "", err
-		}
-		return string(encoded), nil
+		return list_directory(tool_call.Function.Arguments)
+	default:
+		return "", errors.New("Invalid tool call")
 	}
-	return "", errors.New("Invalid tool call")
 }
 
 func call_tools(tool_calls []ToolCall) []string {
@@ -84,20 +74,20 @@ func current_directory() (string, error) {
 	return dir, nil
 }
 
-func list_directory(path string) (ListDirectoryResult, error) {
+func list_directory(path string) (string, error) {
 	var args ListDirectoryArgs
 	err := json.Unmarshal([]byte(path), &args)
 	if err != nil {
-		return ListDirectoryResult{}, err
+		return "", err
 	}
 
 	if args.Path == "" {
-		return ListDirectoryResult{}, errors.New("path is required")
+		return "", errors.New("path is required")
 	}
 
 	entries, err := os.ReadDir(args.Path)
 	if err != nil {
-		return ListDirectoryResult{}, err
+		return "", err
 	}
 
 	result := ListDirectoryResult{
@@ -108,5 +98,9 @@ func list_directory(path string) (ListDirectoryResult, error) {
 		result.Entries = append(result.Entries, entry.Name())
 	}
 
-	return result, nil
+	encoded, err := json.Marshal(result)
+	if err != nil {
+		return "", err
+	}
+	return string(encoded), nil
 }
