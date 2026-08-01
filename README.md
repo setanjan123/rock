@@ -26,11 +26,6 @@ The `main.go` file is the heart of the application. It manages:
 *   **API Compatibility:** Built to interact with models exposed via a standard OpenAI Chat Completion API schema.
 *   **Execution Flow:** It reads the system context, prepares available tools, and then enters an infinite loop waiting for user input or tool execution cycles.
 
-**Configuration & Environment (`.env`):**
-The project supports highly configurable backend services:
-1.  **OpenRouter:** Provides full credentials and endpoints for `openrouter.ai`.
-2.  **Ollama:** Provides alternative local fallback credentials and endpoints targeting a service running on `localhost:11434`.
-
 ***
 
 ### File Breakdown Summary
@@ -39,7 +34,6 @@ The project supports highly configurable backend services:
 | :--- | :--- | :--- |
 | **`main.go`** | **Core Logic.** Contains the main execution loop, API calling mechanism (`call_ai`), and control flow for user interaction. | The primary source code. |
 | **`README.md`**| **Project Overview.** A brief description stating that Rock is a basic CLI AI agent built for learning purposes. | High-level documentation. |
-| **`.env`** | **Configuration.** Stores environment variables (API Keys, base URLs, model names) to switch between `OpenRouter` and `Ollama`. | Crucial for running the application with credentials. |
 | **`go.mod`** | **Module Definition.** Specifies the project module (`rockcli`) and its required Go version/dependencies (e.g., `godotenv`). | Used by a Go developer for dependency management. |
 | **`.gitignore`** | Configuration file detailing files that should be ignored by Git (like `.env`, cache files). | Standard VCS configuration. |
 | **`go.sum`** | Contains cryptographic checksums for the project's dependencies, ensuring integrity. | Dependency integrity file. |
