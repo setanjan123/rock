@@ -75,3 +75,9 @@ type ListDirectoryResult struct {
 	Path    string   `json:"path"`
 	Entries []string `json:"entries"`
 }
+
+type ToolCallResponse struct {
+	Index    int
+	Response string
+	Error    error
+}

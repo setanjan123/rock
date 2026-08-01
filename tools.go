@@ -7,29 +7,57 @@ import (
 	"os"
 )
 
-func call_tool(tool_call ToolCall) (string, error) {
+func call_tool(index int, tool_call ToolCall, responses chan ToolCallResponse) {
+	var response ToolCallResponse
+	response.Index = index
 	switch tool_call.Function.Name {
 	case "current_directory":
-		return current_directory()
+		resp, err := current_directory()
+		if err != nil {
+			response.Error = err
+		} else {
+			response.Response = resp
+		}
 	case "list_directory":
-		return list_directory(tool_call.Function.Arguments)
+		resp, err := list_directory(tool_call.Function.Arguments)
+		if err != nil {
+			response.Error = err
+		} else {
+			response.Response = resp
+		}
 	case "read_file":
-		return read_file(tool_call.Function.Arguments)
+		resp, err := read_file(tool_call.Function.Arguments)
+		if err != nil {
+			response.Error = err
+		} else {
+			response.Response = resp
+		}
 	case "write_file":
-		return write_file(tool_call.Function.Arguments)
+		resp, err := write_file(tool_call.Function.Arguments)
+		if err != nil {
+			response.Error = err
+		} else {
+			response.Response = resp
+		}
 	default:
-		return "", errors.New("Invalid tool call")
+		response.Error = errors.New("Invalid tool call")
 	}
+	responses <- response
 }
 
 func call_tools(tool_calls []ToolCall) []string {
-	var tool_responses []string
-	for _, tool_call := range tool_calls {
-		tool_response, err := call_tool(tool_call)
-		if err != nil {
-			tool_response = err.Error()
+	tool_call_responses := make(chan ToolCallResponse)
+	for index, tool_call := range tool_calls {
+		go call_tool(index, tool_call, tool_call_responses)
+	}
+	tool_responses := make([]string, len(tool_calls))
+	for n := 0; n < len(tool_calls); n++ {
+		tool_response := <-tool_call_responses
+		if tool_response.Error != nil {
+			tool_responses[tool_response.Index] = tool_response.Error.Error()
+		} else {
+			tool_responses[tool_response.Index] = tool_response.Response
 		}
-		tool_responses = append(tool_responses, tool_response)
 	}
 	return tool_responses
 }
