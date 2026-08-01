@@ -1,9 +1,17 @@
-Rock is a very basic CLI based AI agent that works with OpenAI compatible inference servers. 
-My goal was to learn how AI agents work so I decided to build one. 
-
-Heres a description of the repo that I generated using Rock itself:
-
 | Rock v0.01 |
+
+────────────────────────────────────────
+You › Hello
+────────────────────────────────────────
+Agent is thinking...
+
+Agent ›
+Hello! How can I help you today?
+
+────────────────────────────────────────
+You › I want you to read the contents of all the files in this directory and then summarise it
+────────────────────────────────────────
+Agent is thinking...
 
 Agent ›
 Based on the contents of the files, here is a comprehensive summary of the project.
