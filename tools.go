@@ -278,7 +278,6 @@ func write_file(args string) (string, error) {
 		return "", err
 	}
 
-	// Only path is required now; contents can be empty ("").
 	if writeFileArgs.Path == "" {
 		return "", errors.New("path is required")
 	}
@@ -310,7 +309,7 @@ func delete_file(args string) (string, error) {
 	if delFileArgs.Path == "" {
 		return "", errors.New("path is required")
 	}
-	// Use os.Remove() which is the idiomatic and most reliable way to delete files in Go.
+
 	err = os.Remove(delFileArgs.Path)
 	if err != nil {
 		return "", err
