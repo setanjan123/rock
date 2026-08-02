@@ -1,28 +1,90 @@
-# This workflow will build a golang project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
-
 name: Go
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      target_os:
+        description: "Target operating system"
+        required: true
+        type: choice
+        options:
+          - linux
+          - windows
+          - mac
+        default: linux
+      target_arch:
+        description: "Target CPU architecture"
+        required: true
+        type: choice
+        options:
+          - amd64
+          - arm64
+        default: amd64
+      release_tag:
+        description: "Release tag to create, for example v1.0.0"
+        required: true
+        type: string
+
+permissions:
+  contents: write
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
+    env:
+      GO_VERSION: "1.25"
+
     steps:
-    - uses: actions/checkout@v4
+      - name: Check out source
+        uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.25'
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
 
-    - name: Build
-      run: go build -v ./...
+      - name: Test
+        run: go test -v ./...
 
-    - name: Test
-      run: go test -v ./...
+      - name: Build release binary
+        shell: bash
+        env:
+          TARGET_OS: ${{ inputs.target_os }}
+          TARGET_ARCH: ${{ inputs.target_arch }}
+        run: |
+          set -euo pipefail
+
+          case "$TARGET_OS" in
+            linux) GOOS=linux ;;
+            windows) GOOS=windows ;;
+            mac) GOOS=darwin ;;
+            *) echo "Unsupported target OS: $TARGET_OS"; exit 1 ;;
+          esac
+
+          case "$TARGET_ARCH" in
+            amd64|arm64) GOARCH="$TARGET_ARCH" ;;
+            *) echo "Unsupported target architecture: $TARGET_ARCH"; exit 1 ;;
+          esac
+
+          mkdir -p dist
+          binary_name="rock-${TARGET_OS}-${TARGET_ARCH}"
+          if [ "$GOOS" = "windows" ]; then
+            binary_name="${binary_name}.exe"
+          fi
+
+          GOOS="$GOOS" GOARCH="$GOARCH" CGO_ENABLED=0 \
+            go build -trimpath -ldflags="-s -w" -o "dist/${binary_name}" .
+
+          if [ "$GOOS" = "windows" ]; then
+            7z a "dist/${binary_name%.exe}.zip" "dist/${binary_name}"
+          else
+            tar -czf "dist/${binary_name}.tar.gz" -C dist "$binary_name"
+          fi
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          name: Rock ${{ inputs.release_tag }}
+          generate_release_notes: true
+          files: dist/*
