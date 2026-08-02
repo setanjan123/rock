@@ -20,11 +20,6 @@ on:
           - amd64
           - arm64
         default: amd64
-      release_tag:
-        description: "Release tag to create, for example v1.0.0"
-        required: true
-        type: string
-
 permissions:
   contents: write
 
@@ -45,6 +40,11 @@ jobs:
 
       - name: Test
         run: go test -v ./...
+
+      - name: Generate release tag
+        id: release
+        shell: bash
+        run: echo "tag=v$(date -u +'%Y.%m.%d').${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
 
       - name: Build release binary
         shell: bash
@@ -84,7 +84,7 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.release_tag }}
-          name: Rock ${{ inputs.release_tag }}
+          tag_name: ${{ steps.release.outputs.tag }}
+          name: Rock ${{ steps.release.outputs.tag }}
           generate_release_notes: true
           files: dist/*
