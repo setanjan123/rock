@@ -141,7 +141,7 @@ func get_tools() []ToolDefinition {
 							Description: "The contents of the file",
 						},
 					},
-					Required:             []string{"path", "contents"},
+					Required:             []string{"path"},
 					AdditionalProperties: false,
 				},
 			},
@@ -253,12 +253,9 @@ func write_file(args string) (string, error) {
 		return "", err
 	}
 
+	// Only path is required now; contents can be empty ("").
 	if writeFileArgs.Path == "" {
 		return "", errors.New("path is required")
-	}
-
-	if writeFileArgs.Contents == "" {
-		return "", errors.New("contents is required")
 	}
 
 	file, err := os.Create(writeFileArgs.Path)
@@ -268,6 +265,7 @@ func write_file(args string) (string, error) {
 
 	defer file.Close()
 
+	// Write contents, even if empty
 	_, err = file.WriteString(writeFileArgs.Contents)
 
 	if err != nil {
