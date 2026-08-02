@@ -1,33 +1,42 @@
-name: Go
+name: Go Release
 
 on:
   workflow_dispatch:
-    inputs:
-      target_os:
-        description: "Target operating system"
-        required: true
-        type: choice
-        options:
-          - linux
-          - windows
-          - mac
-        default: linux
-      target_arch:
-        description: "Target CPU architecture"
-        required: true
-        type: choice
-        options:
-          - amd64
-          - arm64
-        default: amd64
+
 permissions:
   contents: write
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
-    env:
-      GO_VERSION: "1.25"
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Test
+        run: go test -v ./...
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-amd64
+            goos: linux
+            goarch: amd64
+          - name: windows-amd64
+            goos: windows
+            goarch: amd64
+          - name: macos-arm64
+            goos: darwin
+            goarch: arm64
 
     steps:
       - name: Check out source
@@ -36,38 +45,19 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ env.GO_VERSION }}
+          go-version: "1.25"
 
-      - name: Test
-        run: go test -v ./...
-
-      - name: Generate release tag
-        id: release
-        shell: bash
-        run: echo "tag=v$(date -u +'%Y.%m.%d').${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-
-      - name: Build release binary
+      - name: Build executable and archive
         shell: bash
         env:
-          TARGET_OS: ${{ inputs.target_os }}
-          TARGET_ARCH: ${{ inputs.target_arch }}
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          TARGET_NAME: ${{ matrix.name }}
         run: |
           set -euo pipefail
 
-          case "$TARGET_OS" in
-            linux) GOOS=linux ;;
-            windows) GOOS=windows ;;
-            mac) GOOS=darwin ;;
-            *) echo "Unsupported target OS: $TARGET_OS"; exit 1 ;;
-          esac
-
-          case "$TARGET_ARCH" in
-            amd64|arm64) GOARCH="$TARGET_ARCH" ;;
-            *) echo "Unsupported target architecture: $TARGET_ARCH"; exit 1 ;;
-          esac
-
           mkdir -p dist
-          binary_name="rock-${TARGET_OS}-${TARGET_ARCH}"
+          binary_name="rock-${TARGET_NAME}"
           if [ "$GOOS" = "windows" ]; then
             binary_name="${binary_name}.exe"
           fi
@@ -76,10 +66,33 @@ jobs:
             go build -trimpath -ldflags="-s -w" -o "dist/${binary_name}" .
 
           if [ "$GOOS" = "windows" ]; then
-            7z a "dist/${binary_name%.exe}.zip" "dist/${binary_name}"
+            (cd dist && 7z a "${binary_name%.exe}.zip" "$binary_name")
           else
             tar -czf "dist/${binary_name}.tar.gz" -C dist "$binary_name"
           fi
+
+      - name: Upload build assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate release tag
+        id: release
+        shell: bash
+        run: echo "tag=v$(date -u +'%Y.%m.%d').${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Download build assets
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
