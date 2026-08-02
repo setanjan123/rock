@@ -63,6 +63,7 @@ Use `/exit` to leave the conversation.
 | `list_directory` | Lists the entries in a directory. |
 | `read_file` | Returns the contents of a file. |
 | `write_file` | Creates or overwrites a file. |
+| `delete_file` | Deletes a file |
 | `exec_command` | Executes a command with optional arguments. |
 
 ## Project structure

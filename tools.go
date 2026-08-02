@@ -42,6 +42,13 @@ func call_tool(index int, tool_call ToolCall, responses chan ToolCallResponse) {
 		} else {
 			response.Response = resp
 		}
+	case "delete_file":
+		resp, err := delete_file(tool_call.Function.Arguments)
+		if err != nil {
+			response.Error = err
+		} else {
+			response.Response = resp
+		}
 	case "exec_command":
 		resp, err := exec_command(tool_call.Function.Arguments)
 		response.Error = err
@@ -149,8 +156,26 @@ func get_tools() []ToolDefinition {
 		{
 			Type: "function",
 			Function: FunctionDefinition{
+				Name:        "delete_file",
+				Description: "Deletes a file by path. This is the dedicated utility for safe removal.",
+				Parameters: ToolParameters{
+					Type: "object",
+					Properties: map[string]ToolProperty{
+						"path": {
+							Type:        "string",
+							Description: "The path to the file that needs to be deleted.",
+						},
+					},
+					Required:             []string{"path"},
+					AdditionalProperties: false,
+				},
+			},
+		},
+		{
+			Type: "function",
+			Function: FunctionDefinition{
 				Name:        "exec_command",
-				Description: "Execute a command",
+				Description: "Execute a command (use this only when dedicated tools like delete_file are insufficient).",
 				Parameters: ToolParameters{
 					Type: "object",
 					Properties: map[string]ToolProperty{
@@ -273,6 +298,24 @@ func write_file(args string) (string, error) {
 	}
 
 	return "Write Success!", nil
+}
+
+func delete_file(args string) (string, error) {
+	var delFileArgs DeleteFileArgs
+	err := json.Unmarshal([]byte(args), &delFileArgs)
+	if err != nil {
+		return "", err
+	}
+
+	if delFileArgs.Path == "" {
+		return "", errors.New("path is required")
+	}
+	// Use os.Remove() which is the idiomatic and most reliable way to delete files in Go.
+	err = os.Remove(delFileArgs.Path)
+	if err != nil {
+		return "", err
+	}
+	return "File successfully deleted!", nil
 }
 
 func exec_command(args string) (string, error) {

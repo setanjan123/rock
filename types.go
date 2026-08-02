@@ -72,6 +72,10 @@ type WriteFileArgs struct {
 	Contents string `json:"contents"`
 }
 
+type DeleteFileArgs struct {
+	Path string `json:"path"`
+}
+
 type ExecCommandArgs struct {
 	Command string   `json:"command"`
 	Args    []string `json:"args"`
