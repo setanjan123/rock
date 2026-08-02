@@ -2,11 +2,12 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
+	"time"
 )
 
 func call_tool(index int, tool_call ToolCall, responses chan ToolCallResponse) {
@@ -43,11 +44,8 @@ func call_tool(index int, tool_call ToolCall, responses chan ToolCallResponse) {
 		}
 	case "exec_command":
 		resp, err := exec_command(tool_call.Function.Arguments)
-		if err != nil {
-			response.Error = err
-		} else {
-			response.Response = resp
-		}
+		response.Error = err
+		response.Response = resp
 	default:
 		response.Error = errors.New("Invalid tool call")
 	}
@@ -63,7 +61,11 @@ func call_tools(tool_calls []ToolCall) []string {
 	for n := 0; n < len(tool_calls); n++ {
 		tool_response := <-tool_call_responses
 		if tool_response.Error != nil {
-			tool_responses[tool_response.Index] = tool_response.Error.Error()
+			result := tool_response.Error.Error()
+			if tool_response.Response != "" {
+				result += "\n" + tool_response.Response
+			}
+			tool_responses[tool_response.Index] = result
 		} else {
 			tool_responses[tool_response.Index] = tool_response.Response
 		}
@@ -154,11 +156,11 @@ func get_tools() []ToolDefinition {
 					Properties: map[string]ToolProperty{
 						"command": {
 							Type:        "string",
-							Description: "The command itself",
+							Description: "The executable to run, such as \"go\" or \"powershell\". Do not include arguments here.",
 						},
 						"args": {
 							Type:        "array",
-							Description: "The arguments for the command , if any",
+							Description: "Arguments passed to the executable separately, if any.",
 							Items:       &ToolProperty{Type: "string"},
 						},
 					},
@@ -286,13 +288,19 @@ func exec_command(args string) (string, error) {
 		return "", errors.New("command is required")
 	}
 
-	// First argument is the command, following arguments are its parameters
-	cmd := exec.Command(execArgs.Command, execArgs.Args...)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 
-	output, err := cmd.Output()
+	defer cancel()
+
+	// First argument is the command, following arguments are its parameters
+	cmd := exec.CommandContext(ctx, execArgs.Command, execArgs.Args...)
+
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Println(err)
-		return "", err
+		if ctx.Err() == context.DeadlineExceeded {
+			return string(output), errors.New("command timed out")
+		}
+		return string(output), err
 	}
 
 	return string(output), nil
