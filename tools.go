@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 )
 
 func call_tool(index int, tool_call ToolCall, responses chan ToolCallResponse) {
@@ -34,6 +36,13 @@ func call_tool(index int, tool_call ToolCall, responses chan ToolCallResponse) {
 		}
 	case "write_file":
 		resp, err := write_file(tool_call.Function.Arguments)
+		if err != nil {
+			response.Error = err
+		} else {
+			response.Response = resp
+		}
+	case "exec_command":
+		resp, err := exec_command(tool_call.Function.Arguments)
 		if err != nil {
 			response.Error = err
 		} else {
@@ -131,6 +140,29 @@ func get_tools() []ToolDefinition {
 						},
 					},
 					Required:             []string{"path", "contents"},
+					AdditionalProperties: false,
+				},
+			},
+		},
+		{
+			Type: "function",
+			Function: FunctionDefinition{
+				Name:        "exec_command",
+				Description: "Execute a command",
+				Parameters: ToolParameters{
+					Type: "object",
+					Properties: map[string]ToolProperty{
+						"command": {
+							Type:        "string",
+							Description: "The command itself",
+						},
+						"args": {
+							Type:        "array",
+							Description: "The arguments for the command , if any",
+							Items:       &ToolProperty{Type: "string"},
+						},
+					},
+					Required:             []string{"command"},
 					AdditionalProperties: false,
 				},
 			},
@@ -241,4 +273,28 @@ func write_file(args string) (string, error) {
 	}
 
 	return "Write Success!", nil
+}
+
+func exec_command(args string) (string, error) {
+	var execArgs ExecCommandArgs
+	err := json.Unmarshal([]byte(args), &execArgs)
+	if err != nil {
+		return "", err
+	}
+
+	if execArgs.Command == "" {
+		return "", errors.New("command is required")
+	}
+
+	// First argument is the command, following arguments are its parameters
+	cmd := exec.Command(execArgs.Command, execArgs.Args...)
+
+	output, err := cmd.Output()
+	if err != nil {
+		fmt.Println(err)
+		return "", err
+	}
+
+	return string(output), nil
+
 }

@@ -11,6 +11,7 @@ Rock is a small command-line coding agent written in Go. It was built as a learn
 - List directory contents.
 - Read files.
 - Create or overwrite files.
+- Execute shell commands.
 - Execute multiple requested tool calls concurrently while preserving their original order.
 
 ## How it works
@@ -62,6 +63,7 @@ Use `/exit` to leave the conversation.
 | `list_directory` | Lists the entries in a directory. |
 | `read_file` | Returns the contents of a file. |
 | `write_file` | Creates or overwrites a file. |
+| `exec_command` | Executes a command with optional arguments. |
 
 ## Project structure
 
@@ -77,7 +79,7 @@ Use `/exit` to leave the conversation.
 
 ## Current scope
 
-Rock is intentionally small and educational. Conversation history exists only in memory, and the project does not yet include shell-command execution, persistent sessions, permission prompts, or advanced context management.
+Rock is intentionally small and educational. Conversation history exists only in memory, and the project does not yet include persistent sessions, permission prompts, or advanced context management.
 
 ## A model-generated self-summary
 

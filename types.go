@@ -54,8 +54,9 @@ type ToolParameters struct {
 }
 
 type ToolProperty struct {
-	Type        string `json:"type"`
-	Description string `json:"description"`
+	Type        string        `json:"type"`
+	Description string        `json:"description"`
+	Items       *ToolProperty `json:"items,omitempty"`
 }
 
 type ListDirectoryArgs struct {
@@ -69,6 +70,11 @@ type ReadFileArgs struct {
 type WriteFileArgs struct {
 	Path     string `json:"path"`
 	Contents string `json:"contents"`
+}
+
+type ExecCommandArgs struct {
+	Command string   `json:"command"`
+	Args    []string `json:"args"`
 }
 
 type ListDirectoryResult struct {
