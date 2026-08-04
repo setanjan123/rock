@@ -17,7 +17,7 @@ import (
 const promptSeparator = "────────────────────────────────────────"
 
 func main() {
-	fmt.Println("| Rock v0.01 |")
+	fmt.Println("| Rock v1.00 |")
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
