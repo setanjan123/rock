@@ -82,11 +82,6 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Generate release tag
-        id: release
-        shell: bash
-        run: echo "tag=v$(date -u +'%Y.%m.%d').${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
-
       - name: Download build assets
         uses: actions/download-artifact@v4
         with:
@@ -97,7 +92,8 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.release.outputs.tag }}
-          name: Rock ${{ steps.release.outputs.tag }}
-          generate_release_notes: true
+          tag_name: latest
+          name: Rock (rolling)
+          body: Latest build from the main branch. Updated automatically.
+          make_latest: true
           files: dist/*
