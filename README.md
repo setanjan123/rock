@@ -13,6 +13,7 @@ Rock is a small command-line coding agent written in Go. It was built as a learn
 - Create or overwrite files.
 - Execute shell commands.
 - Execute multiple requested tool calls concurrently while preserving their original order.
+- Automatically compact conversation history when approaching the context limit (set via `CONTEXT_LIMIT` in `.env`).
 
 ## How it works
 
@@ -30,6 +31,22 @@ Assistant response
 
 The project uses the OpenAI-compatible message and tool-calling format, so it can work with a local or remote compatible backend.
 
+### Context compaction
+
+Rock tracks estimated token usage with a chars/4 heuristic. When usage exceeds 80% of the configured limit (`CONTEXT_LIMIT` in `.env`, default 32k), it asks the LLM to summarize older messages and replaces them with the summary — keeping the system prompt and the last 10 messages intact. Compaction never interrupts an in-progress tool-call chain.
+
+```text
+... conversation continuing ...
+    ↓
+token estimate > 80% of CONTEXT_LIMIT?
+    ↓ YES
+summarize older history via LLM (no tools)
+    ↓
+replace with: [system prompt] [summary] [last 10 messages]
+    ↓
+... conversation continues with compacted history ...
+```
+
 ## Setup
 
 Create a `.env` file in the project directory. It is ignored by Git.
@@ -38,6 +55,7 @@ Create a `.env` file in the project directory. It is ignored by Git.
 API_KEY=your-api-key
 API_BASE_URL=your-openai-compatible-chat-completions-url
 MODEL=your-model-name
+CONTEXT_LIMIT=32768
 ```
 
 For a local Ollama setup, the URL is commonly similar to:
@@ -72,6 +90,7 @@ Use `/exit` to leave the conversation.
 | --- | --- |
 | `main.go` | Application startup, user loop, and LLM communication. |
 | `tools.go` | Tool definitions, dispatch, concurrency, and filesystem operations. |
+| `compaction.go` | Token estimation, context compaction trigger, and LLM summarization. |
 | `types.go` | Request, response, tool-call, and argument structs. |
 | `util.go` | System-prompt loading and response handling. |
 | `system.md` | Optional system instructions for the model. |
@@ -80,7 +99,7 @@ Use `/exit` to leave the conversation.
 
 ## Current scope
 
-Rock is intentionally small and educational. Conversation history exists only in memory, and the project does not yet include persistent sessions, permission prompts, or advanced context management.
+Rock is intentionally small and educational. Conversation history exists only in memory, and the project does not yet include persistent sessions or permission prompts.
 
 ## A model-generated self-summary
 
