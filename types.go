@@ -2,7 +2,7 @@ package main
 
 type ChatCompletionRequest struct {
 	Model      string           `json:"model"`
-	Messages   []map[string]any `json:"messages"`
+	Messages   []Message        `json:"messages"`
 	Tools      []ToolDefinition `json:"tools"`
 	ToolChoice string           `json:"tool_choice"`
 	Stream     bool             `json:"stream"`
@@ -19,9 +19,10 @@ type Choice struct {
 }
 
 type Message struct {
-	Role      string     `json:"role"`
-	Content   string     `json:"content"`
-	ToolCalls []ToolCall `json:"tool_calls"`
+	Role       string     `json:"role"`
+	Content    string     `json:"content,omitempty"`
+	ToolCalls  []ToolCall `json:"tool_calls,omitempty"`
+	ToolCallID string     `json:"tool_call_id,omitempty"`
 }
 
 type ToolCall struct {

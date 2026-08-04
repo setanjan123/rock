@@ -26,7 +26,7 @@ func main() {
 	baseURL := os.Getenv("API_BASE_URL")
 	model := os.Getenv("MODEL")
 	var chatResponse ChatCompletionResponse
-	var messages []map[string]any
+	var messages []Message
 	var tools []ToolDefinition
 	read_system_prompt(&messages)
 	tools = get_tools()
@@ -48,10 +48,7 @@ func main() {
 			}
 			fmt.Println(promptSeparator)
 			fmt.Println("Agent is thinking...")
-			message := make(map[string]any)
-			message["role"] = "user"
-			message["content"] = input
-			messages = append(messages, message)
+			messages = append(messages, Message{Role: "user", Content: input})
 		}
 		chatResponse, err = call_ai(&messages, &apiKey, &baseURL, &model, &tools)
 		if err != nil {
@@ -62,7 +59,7 @@ func main() {
 	}
 }
 
-func call_ai(messages *[]map[string]any, apiKey *string, baseURL *string, model *string, tools *[]ToolDefinition) (ChatCompletionResponse, error) {
+func call_ai(messages *[]Message, apiKey *string, baseURL *string, model *string, tools *[]ToolDefinition) (ChatCompletionResponse, error) {
 	request := ChatCompletionRequest{
 		Model:      *model,
 		Messages:   *messages,

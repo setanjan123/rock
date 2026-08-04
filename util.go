@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func read_system_prompt(messages *[]map[string]any) {
+func read_system_prompt(messages *[]Message) {
 	// Read the entire file into memory
 	content, err := os.ReadFile("system.md")
 	if err != nil && !os.IsNotExist(err) {
@@ -16,40 +16,28 @@ func read_system_prompt(messages *[]map[string]any) {
 	systemprompt := strings.TrimSpace(string(content))
 
 	if systemprompt != "" {
-		message := make(map[string]any)
-		message["role"] = "system"
-		message["content"] = systemprompt
-		*messages = append(*messages, message)
+		*messages = append(*messages, Message{Role: "system", Content: systemprompt})
 	}
 
 }
 
-func handle_response(response ChatCompletionResponse, messages *[]map[string]any, is_toolcall_continue *bool) {
+func handle_response(response ChatCompletionResponse, messages *[]Message, is_toolcall_continue *bool) {
 	var finish_reason = response.Choices[0].FinishReason
-	message := make(map[string]any)
-	message["role"] = "assistant"
 	switch finish_reason {
 	case "tool_calls":
 		var tool_calls = response.Choices[0].Message.ToolCalls
 		tool_responses := call_tools(tool_calls)
-		message["content"] = nil
-		message["tool_calls"] = tool_calls
-		*messages = append(*messages, message)
+		*messages = append(*messages, Message{Role: "assistant", ToolCalls: tool_calls})
 
 		for index, tool_response := range tool_responses {
-			toolmessage := make(map[string]any)
-			toolmessage["role"] = "tool"
-			toolmessage["tool_call_id"] = tool_calls[index].ID
-			toolmessage["content"] = tool_response
-			*messages = append(*messages, toolmessage)
+			*messages = append(*messages, Message{Role: "tool", ToolCallID: tool_calls[index].ID, Content: tool_response})
 		}
 		*is_toolcall_continue = true
 	case "stop":
-		message["content"] = response.Choices[0].Message.Content
-		*messages = append(*messages, message)
+		*messages = append(*messages, Message{Role: "assistant", Content: response.Choices[0].Message.Content})
 		fmt.Println()
 		fmt.Println("Agent ›")
-		fmt.Println(message["content"])
+		fmt.Println(response.Choices[0].Message.Content)
 		*is_toolcall_continue = false
 	}
 }
