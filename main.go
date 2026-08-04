@@ -49,6 +49,16 @@ func main() {
 			fmt.Println(promptSeparator)
 			fmt.Println("Agent is thinking...")
 			messages = append(messages, Message{Role: "user", Content: input})
+
+			limit := get_context_limit()
+			if needs_compaction(messages, limit) {
+				fmt.Println("Context limit approaching, summarizing conversation...")
+				if err := compact_context(&messages, &apiKey, &baseURL, &model); err != nil {
+					fmt.Println("Compaction failed, continuing without summary:", err)
+				} else {
+					fmt.Println("Context compacted successfully.")
+				}
+			}
 		}
 		chatResponse, err = call_ai(&messages, &apiKey, &baseURL, &model, &tools)
 		if err != nil {
@@ -60,10 +70,14 @@ func main() {
 }
 
 func call_ai(messages *[]Message, apiKey *string, baseURL *string, model *string, tools *[]ToolDefinition) (ChatCompletionResponse, error) {
+	var toolsSlice []ToolDefinition
+	if tools != nil {
+		toolsSlice = *tools
+	}
 	request := ChatCompletionRequest{
 		Model:      *model,
 		Messages:   *messages,
-		Tools:      *tools,
+		Tools:      toolsSlice,
 		ToolChoice: "auto",
 		Stream:     false,
 	}
