@@ -58,24 +58,127 @@ func TestTotalEstimatedTokens(t *testing.T) {
 	}
 }
 
-// TestNeedsCompaction verifies the 80% threshold boundary.
-// With a limit of 100, compaction triggers only above 80 estimated tokens.
+// TestNeedsCompaction verifies the 80% threshold boundary directly against
+// the maintained contextUsage counter (no rescan of messages).
 func TestNeedsCompaction(t *testing.T) {
 	const limit = 100
 
-	below := []Message{message("user", strings.Repeat("a", 320))} // 80 tokens, not above
-	if needs_compaction(below, limit) {
+	if needs_compaction(80, limit) {
 		t.Fatalf("needs_compaction = true at exactly 80 tokens, want false (threshold is strictly >)")
 	}
 
-	above := []Message{message("user", strings.Repeat("a", 324))} // 81 tokens
-	if !needs_compaction(above, limit) {
+	if !needs_compaction(81, limit) {
 		t.Fatalf("needs_compaction = false at 81 tokens, want true")
 	}
 
-	empty := []Message{}
-	if needs_compaction(empty, limit) {
-		t.Fatalf("needs_compaction = true for empty conversation, want false")
+	if needs_compaction(0, limit) {
+		t.Fatalf("needs_compaction = true for an empty context, want false")
+	}
+}
+
+// TestTrackContextUsage verifies that the running counter stays in sync with
+// the conversation by mirroring total_estimated_tokens across appends.
+func TestTrackContextUsage(t *testing.T) {
+	messages := []Message{message("system", strings.Repeat("a", 40))} // 10 tokens
+	usage := total_estimated_tokens(messages)
+
+	appends := []Message{
+		message("user", strings.Repeat("b", 40)), // 10 tokens
+		{ // tool-call message: 7 tokens
+			Role: "assistant",
+			ToolCalls: []ToolCall{{
+				Function: Function{Name: "read_file", Arguments: `{"path":"/foo/bar.txt"}`},
+			}},
+		},
+		message("tool", strings.Repeat("c", 40)), // 10 tokens
+		message("assistant", strings.Repeat("d", 40)), // 10 tokens
+	}
+	for _, msg := range appends {
+		messages = append(messages, msg)
+		track_context_usage(&usage, msg)
+	}
+
+	if want := total_estimated_tokens(messages); usage != want {
+		t.Fatalf("tracked usage = %d, want %d (must match total_estimated_tokens)", usage, want)
+	}
+}
+
+// TestHandleResponseTracksUsage verifies the real wiring: handle_response must
+// increment the running counter for every message it appends, in both the
+// tool_calls branch (assistant tool-call message + tool result) and the stop
+// branch (assistant text message).
+func TestHandleResponseTracksUsage(t *testing.T) {
+	// --- stop branch ---
+	stopMessages := []Message{message("system", "prompt")}
+	stopUsage := total_estimated_tokens(stopMessages)
+	stopResponse := ChatCompletionResponse{
+		Choices: []Choice{{FinishReason: "stop", Message: message("assistant", strings.Repeat("a", 40))}}, // 10 tokens
+	}
+	isContinue := true
+	handle_response(stopResponse, &stopMessages, &isContinue, &stopUsage)
+	if want := total_estimated_tokens(stopMessages); stopUsage != want {
+		t.Fatalf("stop branch: tracked usage = %d, want %d (must equal total_estimated_tokens)", stopUsage, want)
+	}
+	if isContinue {
+		t.Fatalf("stop branch: is_toolcall_continue = true, want false")
+	}
+	if stopMessages[len(stopMessages)-1].Role != "assistant" {
+		t.Fatalf("stop branch: last message role = %q, want assistant", stopMessages[len(stopMessages)-1].Role)
+	}
+
+	// --- tool_calls branch (executes current_directory, no filesystem writes) ---
+	toolMessages := []Message{message("system", "prompt")}
+	toolUsage := total_estimated_tokens(toolMessages)
+	toolResponse := ChatCompletionResponse{
+		Choices: []Choice{{
+			FinishReason: "tool_calls",
+			Message: Message{
+				Role: "assistant",
+				ToolCalls: []ToolCall{{
+					ID:       "call_1",
+					Type:     "function",
+					Function: Function{Name: "current_directory", Arguments: "{}"},
+				}},
+			},
+		}},
+	}
+	isContinue = false
+	handle_response(toolResponse, &toolMessages, &isContinue, &toolUsage)
+	if want := total_estimated_tokens(toolMessages); toolUsage != want {
+		t.Fatalf("tool_calls branch: tracked usage = %d, want %d (must equal total_estimated_tokens)", toolUsage, want)
+	}
+	if !isContinue {
+		t.Fatalf("tool_calls branch: is_toolcall_continue = false, want true")
+	}
+	// The tool_calls branch appends the assistant tool-call message plus one tool result.
+	if want := 3; len(toolMessages) != want {
+		t.Fatalf("tool_calls branch: got %d messages, want %d (system, assistant, tool)", len(toolMessages), want)
+	}
+	if toolMessages[len(toolMessages)-1].Role != "tool" {
+		t.Fatalf("tool_calls branch: last message role = %q, want tool", toolMessages[len(toolMessages)-1].Role)
+	}
+}
+
+// TestTrackContextUsageAfterCompaction verifies that recomputing the counter
+// from messages after replace_with_summary keeps it in sync with the new
+// (much smaller) history.
+func TestTrackContextUsageAfterCompaction(t *testing.T) {
+	messages := []Message{message("system", "prompt")}
+	for i := 1; i <= 20; i++ {
+		messages = append(messages, message("user", strings.Repeat("x", 400))) // 100 tokens each
+	}
+	usage := total_estimated_tokens(messages)
+
+	replace_with_summary(&messages, "compacted summary")
+	usage = total_estimated_tokens(messages)
+
+	if want := total_estimated_tokens(messages); usage != want {
+		t.Fatalf("recomputed usage = %d, want %d", usage, want)
+	}
+	// After compaction the counter must reflect the shrunken history, not the
+	// pre-compaction 2010-token count.
+	if usage >= 2000 {
+		t.Fatalf("recomputed usage = %d, want a small post-compaction count", usage)
 	}
 }
 

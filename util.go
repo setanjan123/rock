@@ -21,20 +21,26 @@ func read_system_prompt(messages *[]Message) {
 
 }
 
-func handle_response(response ChatCompletionResponse, messages *[]Message, is_toolcall_continue *bool) {
+func handle_response(response ChatCompletionResponse, messages *[]Message, is_toolcall_continue *bool, contextUsage *int) {
 	var finish_reason = response.Choices[0].FinishReason
 	switch finish_reason {
 	case "tool_calls":
 		var tool_calls = response.Choices[0].Message.ToolCalls
 		tool_responses := call_tools(tool_calls)
-		*messages = append(*messages, Message{Role: "assistant", ToolCalls: tool_calls})
+		assistantMsg := Message{Role: "assistant", ToolCalls: tool_calls}
+		*messages = append(*messages, assistantMsg)
+		track_context_usage(contextUsage, assistantMsg)
 
 		for index, tool_response := range tool_responses {
-			*messages = append(*messages, Message{Role: "tool", ToolCallID: tool_calls[index].ID, Content: tool_response})
+			toolMsg := Message{Role: "tool", ToolCallID: tool_calls[index].ID, Content: tool_response}
+			*messages = append(*messages, toolMsg)
+			track_context_usage(contextUsage, toolMsg)
 		}
 		*is_toolcall_continue = true
 	case "stop":
-		*messages = append(*messages, Message{Role: "assistant", Content: response.Choices[0].Message.Content})
+		assistantMsg := Message{Role: "assistant", Content: response.Choices[0].Message.Content}
+		*messages = append(*messages, assistantMsg)
+		track_context_usage(contextUsage, assistantMsg)
 		fmt.Println()
 		fmt.Println("Agent ›")
 		fmt.Println(response.Choices[0].Message.Content)

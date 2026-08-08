@@ -29,6 +29,7 @@ func main() {
 	var messages []Message
 	var tools []ToolDefinition
 	read_system_prompt(&messages)
+	contextUsage := total_estimated_tokens(messages) // running estimate, kept in sync with every append
 	tools = get_tools()
 	scanner := bufio.NewScanner(os.Stdin)
 	var input string
@@ -37,7 +38,7 @@ func main() {
 		if !is_toolcall_continue {
 			fmt.Println()
 			fmt.Println(promptSeparator)
-			fmt.Println("Current context: ", get_context_usage(&messages))
+			fmt.Println("Current context: ", get_context_usage(contextUsage))
 			fmt.Println("────────────────────────────────────────")
 			fmt.Print("You › ")
 			if scanner.Scan() {
@@ -50,14 +51,17 @@ func main() {
 			}
 			fmt.Println(promptSeparator)
 			fmt.Println("Agent is thinking...")
-			messages = append(messages, Message{Role: "user", Content: input})
+			userMsg := Message{Role: "user", Content: input}
+			messages = append(messages, userMsg)
+			track_context_usage(&contextUsage, userMsg)
 
 			limit := get_context_limit()
-			if needs_compaction(messages, limit) {
+			if needs_compaction(contextUsage, limit) {
 				fmt.Println("Context limit approaching, summarizing conversation...")
 				if err := compact_context(&messages, &apiKey, &baseURL, &model); err != nil {
 					fmt.Println("Compaction failed, continuing without summary:", err)
 				} else {
+					contextUsage = total_estimated_tokens(messages) // summary rewrote history, recompute
 					fmt.Println("Context compacted successfully.")
 				}
 			}
@@ -66,7 +70,7 @@ func main() {
 		if err != nil {
 			fmt.Println(err.Error())
 		} else {
-			handle_response(chatResponse, &messages, &is_toolcall_continue)
+			handle_response(chatResponse, &messages, &is_toolcall_continue, &contextUsage)
 		}
 	}
 }

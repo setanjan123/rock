@@ -47,20 +47,21 @@ func total_estimated_tokens(messages []Message) int {
 	return estimation
 }
 
-// needs_compaction reports whether the conversation is using more than
-// compactionThreshold of the context limit.
-func needs_compaction(messages []Message, limit int) bool {
-	current_context_usage := total_estimated_tokens(messages)
-	if float64(current_context_usage)/float64(limit) > compactionThreshold {
-		return true
-	}
-	return false
+// needs_compaction reports whether the estimated context usage is more than
+// compactionThreshold of the limit.
+func needs_compaction(contextUsage int, limit int) bool {
+	return float64(contextUsage)/float64(limit) > compactionThreshold
 }
 
-func get_context_usage(messages *[]Message) string {
-	current_context_usage := total_estimated_tokens(*messages)
+// track_context_usage adds a message's token estimate to the running count
+// that is maintained alongside the conversation history.
+func track_context_usage(contextUsage *int, msg Message) {
+	*contextUsage += estimate_tokens(msg)
+}
+
+func get_context_usage(contextUsage int) string {
 	context_limit := get_context_limit()
-	return fmt.Sprintf("%d/%d", current_context_usage, context_limit)
+	return fmt.Sprintf("%d/%d", contextUsage, context_limit)
 }
 
 // compact_context summarizes older messages via a dedicated no-tools API call
