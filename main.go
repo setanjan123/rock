@@ -38,7 +38,7 @@ func main() {
 			fmt.Println()
 			fmt.Println(promptSeparator)
 			fmt.Println("Current context: ", get_context_usage(&messages))
-			fmt.Println("")
+			fmt.Println("────────────────────────────────────────")
 			fmt.Print("You › ")
 			if scanner.Scan() {
 				input = scanner.Text()
