@@ -49,7 +49,7 @@ replace with: [system prompt] [summary] [last 10 messages]
 
 ## Setup
 
-Create a `.env` file in the project directory. It is ignored by Git.
+Create a `.env` file in the project directory.
 
 ```dotenv
 API_KEY=your-api-key
@@ -94,8 +94,6 @@ Use `/exit` to leave the conversation.
 | `types.go` | Request, response, tool-call, and argument structs. |
 | `util.go` | System-prompt loading and response handling. |
 | `system.md` | Optional system instructions for the model. |
-| `go.mod` / `go.sum` | Go module and dependency metadata. |
-| `.gitignore` | Excludes local secrets, history, and cache files. |
 
 ## Current scope
 
