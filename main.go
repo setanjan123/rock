@@ -17,7 +17,7 @@ import (
 const promptSeparator = "────────────────────────────────────────"
 
 func main() {
-	fmt.Println("| Rock v1.00 |")
+	fmt.Println("| Rock v1.01 |")
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -37,6 +37,8 @@ func main() {
 		if !is_toolcall_continue {
 			fmt.Println()
 			fmt.Println(promptSeparator)
+			fmt.Println("Current context: ", get_context_usage(&messages))
+			fmt.Println("")
 			fmt.Print("You › ")
 			if scanner.Scan() {
 				input = scanner.Text()

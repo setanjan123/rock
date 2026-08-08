@@ -28,9 +28,14 @@ func get_context_limit() int {
 }
 
 // estimate_tokens returns a rough token count for a single message
-// (len(Content) / tokenCharsRatio). Tool-call JSON overhead is ignored.
+// (len(Content) / tokenCharsRatio), plus any ToolCall function name and
+// arguments JSON.
 func estimate_tokens(msg Message) int {
-	return len(msg.Content) / tokenCharsRatio
+	tokens := len(msg.Content) / tokenCharsRatio
+	for _, tc := range msg.ToolCalls {
+		tokens += len(tc.Function.Name)/tokenCharsRatio + len(tc.Function.Arguments)/tokenCharsRatio
+	}
+	return tokens
 }
 
 // total_estimated_tokens sums estimate_tokens across all messages.
@@ -50,6 +55,12 @@ func needs_compaction(messages []Message, limit int) bool {
 		return true
 	}
 	return false
+}
+
+func get_context_usage(messages *[]Message) string {
+	current_context_usage := total_estimated_tokens(*messages)
+	context_limit := get_context_limit()
+	return fmt.Sprintf("%d/%d", current_context_usage, context_limit)
 }
 
 // compact_context summarizes older messages via a dedicated no-tools API call

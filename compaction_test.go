@@ -11,23 +11,35 @@ func message(role, content string) Message {
 }
 
 // TestEstimateTokens verifies the chars/4 heuristic: a 40-char message
-// estimates to 10 tokens, an empty message to 0.
+// estimates to 10 tokens, an empty message to 0. Tool calls are also
+// counted from their Function.Name and Function.Arguments fields.
 func TestEstimateTokens(t *testing.T) {
 	cases := []struct {
-		name    string
-		content string
-		want    int
+		name string
+		msg  Message
+		want int
 	}{
-		{"empty content", "", 0},
-		{"short content", "abcd", 1},
-		{"exact multiple of four", strings.Repeat("a", 40), 10},
-		{"rounded down", strings.Repeat("a", 41), 10},
+		{"empty content", message("user", ""), 0},
+		{"short content", message("user", "abcd"), 1},
+		{"exact multiple of four", message("user", strings.Repeat("a", 40)), 10},
+		{"rounded down", message("user", strings.Repeat("a", 41)), 10},
+		{
+			"tool call without content",
+			Message{
+				Role:    "assistant",
+				Content: "",
+				ToolCalls: []ToolCall{{
+					Function: Function{Name: "read_file", Arguments: `{"path":"/foo/bar.txt"}`},
+				}},
+			},
+				7, // "read_file"(9/4=2) + `{"path":"/foo/bar.txt"}`(23/4=5) = 7
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := estimate_tokens(message("user", tc.content))
+			got := estimate_tokens(tc.msg)
 			if got != tc.want {
-				t.Fatalf("estimate_tokens(%q) = %d, want %d", tc.content, got, tc.want)
+				t.Fatalf("estimate_tokens(%+v) = %d, want %d", tc.msg, got, tc.want)
 			}
 		})
 	}
