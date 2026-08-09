@@ -49,12 +49,15 @@ replace with: [system prompt] [summary] [last 10 messages]
 
 ## Setup
 
-Configure the following environment variables. They can be set directly in your shell or placed in an optional `.env` file in the project directory. Exported variables take precedence over the `.env` file. All three required variables must be set or Rock exits with an error.
+Configure the following environment variables. They can be set directly in your shell or placed in an optional `.env` file in the project directory. Exported variables take precedence over the `.env` file. The three required variables must be set or Rock exits with an error.
 
 ```dotenv
+# Required
 API_KEY=your-api-key
 API_BASE_URL=your-openai-compatible-chat-completions-url
 MODEL=your-model-name
+
+# Optional
 CONTEXT_LIMIT=32768
 ```
 
