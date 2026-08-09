@@ -13,7 +13,7 @@ Rock is a small command-line coding agent written in Go. It was built as a learn
 - Create or overwrite files.
 - Execute shell commands.
 - Execute multiple requested tool calls concurrently while preserving their original order.
-- Automatically compact conversation history when approaching the context limit (set via `CONTEXT_LIMIT` in `.env`).
+- Automatically compact conversation history when approaching the context limit (set via `CONTEXT_LIMIT`).
 
 ## How it works
 
@@ -33,7 +33,7 @@ The project uses the OpenAI-compatible message and tool-calling format, so it ca
 
 ### Context compaction
 
-Rock tracks estimated token usage with a chars/4 heuristic. When usage exceeds 80% of the configured limit (`CONTEXT_LIMIT` in `.env`, default 32k), it asks the LLM to summarize older messages and replaces them with the summary — keeping the system prompt and the last 10 messages intact. Compaction never interrupts an in-progress tool-call chain.
+Rock tracks estimated token usage with a chars/4 heuristic. When usage exceeds 80% of the configured limit (`CONTEXT_LIMIT`, default 32k), it asks the LLM to summarize older messages and replaces them with the summary — keeping the system prompt and the last 10 messages intact. Compaction never interrupts an in-progress tool-call chain.
 
 ```text
 ... conversation continuing ...
@@ -49,7 +49,7 @@ replace with: [system prompt] [summary] [last 10 messages]
 
 ## Setup
 
-Create a `.env` file in the project directory.
+Configure the following environment variables. They can be set directly in your shell or placed in an optional `.env` file in the project directory. Exported variables take precedence over the `.env` file. All three required variables must be set or Rock exits with an error.
 
 ```dotenv
 API_KEY=your-api-key
