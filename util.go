@@ -1,10 +1,31 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/joho/godotenv"
 )
+
+func load_config() (string, string, string, error) {
+	// Load .env if present; exported env vars take precedence either way.
+	_ = godotenv.Load()
+
+	apiKey := os.Getenv("API_KEY")
+	baseURL := os.Getenv("API_BASE_URL")
+	model := os.Getenv("MODEL")
+
+	for _, name := range []string{"API_KEY", "API_BASE_URL", "MODEL"} {
+		if os.Getenv(name) == "" {
+			return "", "", "", errors.New("missing required env var " + name + " (set it or add it to a .env file)")
+		}
+	}
+
+	return apiKey, baseURL, model, nil
+}
+
 
 func read_system_prompt(messages *[]Message) {
 	// Read the entire file into memory

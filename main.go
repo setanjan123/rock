@@ -10,21 +10,16 @@ import (
 	"log"
 	"net/http"
 	"os"
-
-	"github.com/joho/godotenv"
 )
 
 const promptSeparator = "────────────────────────────────────────"
 
 func main() {
 	fmt.Println("| Rock v1.01 |")
-	err := godotenv.Load()
+	apiKey, baseURL, model, err := load_config()
 	if err != nil {
-		log.Fatal("Error loading .env file")
+		log.Fatal(err.Error())
 	}
-	apiKey := os.Getenv("API_KEY")
-	baseURL := os.Getenv("API_BASE_URL")
-	model := os.Getenv("MODEL")
 	var chatResponse ChatCompletionResponse
 	var messages []Message
 	var tools []ToolDefinition
