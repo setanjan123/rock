@@ -4,7 +4,8 @@ Rock is a small command-line coding agent written in Go. It was built as a learn
 
 ## What it can do
 
-- Maintain an in-memory conversation with an LLM.
+- Maintain a conversation with an LLM and persist it to SQLite.
+- Save and resume conversations across sessions.
 - Communicate with an OpenAI-compatible chat-completions endpoint.
 - Load an optional system prompt from `system.md`.
 - Discover the current directory.
@@ -59,6 +60,7 @@ MODEL=your-model-name
 
 # Optional
 CONTEXT_LIMIT=32768
+VERBOSE_TOOLS=1
 ```
 
 For a local Ollama setup, the URL is commonly similar to:
@@ -74,7 +76,23 @@ go mod tidy
 go run .
 ```
 
-Use `/exit` to leave the conversation.
+### Sessions
+
+Rock saves every completed turn to `rock.db` in the current directory. Each
+conversation gets a short generated id that is printed on startup and on exit.
+
+- Start a new conversation: `go run .`
+- Resume a conversation: `go run . <id>` (the id is shown when starting and exiting)
+- List past conversations during a session: `/history`
+- Leave and save: `/exit`
+
+Set `VERBOSE_TOOLS=1` to print tool names, arguments, and results as they run
+(and when replaying a resumed conversation). By default tool calls and results
+are executed silently.
+
+The system prompt is captured when a conversation starts. On resume, Rock loads
+the full stored history instead of reading `system.md` again, so the resumed
+conversation is an exact continuation.
 
 ## Available tools
 
@@ -95,12 +113,14 @@ Use `/exit` to leave the conversation.
 | `tools.go` | Tool definitions, dispatch, concurrency, and filesystem operations. |
 | `compaction.go` | Token estimation, context compaction trigger, and LLM summarization. |
 | `types.go` | Request, response, tool-call, and argument structs. |
+| `storage.go` | SQLite persistence, conversation listing, and id generation. |
 | `util.go` | System-prompt loading and response handling. |
 | `system.md` | Optional system instructions for the model. |
 
 ## Current scope
 
-Rock is intentionally small and educational. Conversation history exists only in memory, and the project does not yet include persistent sessions or permission prompts.
+Rock is intentionally small and educational. Conversations persist to SQLite, but
+the project does not yet include permission prompts or full message-level browsing.
 
 ## A model-generated self-summary
 

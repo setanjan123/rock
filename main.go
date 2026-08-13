@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 )
 
 const promptSeparator = "────────────────────────────────────────"
@@ -20,10 +22,31 @@ func main() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-	var chatResponse ChatCompletionResponse
+
+	db, err := open_db("rock.db")
+	if err != nil {
+		log.Fatalf("failed to open database: %v", err)
+	}
+	defer db.Close()
+
+	var conversationID string
 	var messages []Message
+
+	if len(os.Args) > 1 {
+		conversationID = os.Args[1]
+		messages, err = load_conversation(db, conversationID)
+		if err != nil {
+			log.Fatalf("failed to resume conversation %q: %v", conversationID, err)
+		}
+		fmt.Println("Resumed conversation", conversationID)
+		print_conversation(messages)
+	} else {
+		conversationID = generate_conversation_id()
+		read_system_prompt(&messages)
+		fmt.Println("New conversation", conversationID)
+	}
+
 	var tools []ToolDefinition
-	read_system_prompt(&messages)
 	contextUsage := total_estimated_tokens(messages) // running estimate, kept in sync with every append
 	tools = get_tools()
 	scanner := bufio.NewScanner(os.Stdin)
@@ -34,15 +57,23 @@ func main() {
 			fmt.Println()
 			fmt.Println(promptSeparator)
 			fmt.Println("Current context: ", get_context_usage(contextUsage))
-			fmt.Println("────────────────────────────────────────")
+			fmt.Println("Conversation: ", conversationID)
+			fmt.Println(promptSeparator)
 			fmt.Print("You › ")
 			if scanner.Scan() {
 				input = scanner.Text()
 				switch input {
 				case "/exit":
+					if err := save_conversation(db, conversationID, messages); err != nil {
+						fmt.Println("Failed to save conversation:", err)
+					} else {
+						fmt.Println("Saved as", conversationID, "- resume with: rock", conversationID)
+					}
 					return
+				case "/history":
+					print_history(db, conversationID)
+					continue
 				}
-
 			}
 			fmt.Println(promptSeparator)
 			fmt.Println("Agent is thinking...")
@@ -61,12 +92,67 @@ func main() {
 				}
 			}
 		}
-		chatResponse, err = call_ai(&messages, &apiKey, &baseURL, &model, &tools)
+		chatResponse, err := call_ai(&messages, &apiKey, &baseURL, &model, &tools)
 		if err != nil {
 			fmt.Println(err.Error())
 		} else {
 			handle_response(chatResponse, &messages, &is_toolcall_continue, &contextUsage)
 		}
+
+		if !is_toolcall_continue {
+			if err := save_conversation(db, conversationID, messages); err != nil {
+				fmt.Println("Failed to save conversation:", err)
+			}
+		}
+	}
+}
+
+func print_conversation(messages []Message) {
+	for _, msg := range messages {
+		switch msg.Role {
+		case "system":
+			continue
+		case "user":
+			fmt.Println(promptSeparator)
+			fmt.Println("You ›")
+			fmt.Println(msg.Content)
+		case "assistant":
+			if len(msg.ToolCalls) > 0 {
+				print_tool_calls(msg.ToolCalls)
+			} else {
+				fmt.Println(promptSeparator)
+				fmt.Println("Agent ›")
+				fmt.Println(msg.Content)
+			}
+		case "tool":
+			if verbose_tools() {
+				fmt.Println(promptSeparator)
+				fmt.Println("Tool result ›")
+				fmt.Println(msg.Content)
+			}
+		}
+	}
+}
+
+func print_history(db *sql.DB, currentID string) {
+	summaries, err := list_conversations(db)
+	if err != nil {
+		fmt.Println("Failed to list conversations:", err)
+		return
+	}
+	if len(summaries) == 0 {
+		fmt.Println("No past conversations yet.")
+		return
+	}
+	fmt.Println()
+	fmt.Println("Past conversations:")
+	for _, summary := range summaries {
+		marker := " "
+		if summary.ID == currentID {
+			marker = "*"
+		}
+		updated := time.Unix(summary.UpdatedAt, 0).Format("2006-01-02 15:04")
+		fmt.Printf("%s %s  %s  %s\n", marker, summary.ID, summary.Title, updated)
 	}
 }
 

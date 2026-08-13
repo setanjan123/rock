@@ -2,3 +2,6 @@
 .history
 .gocache
 .commandcode
+rock.db
+rockcli.exe
+rockcli

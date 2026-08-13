@@ -27,6 +27,22 @@ func load_config() (string, string, string, error) {
 }
 
 
+func verbose_tools() bool {
+	v := strings.TrimSpace(os.Getenv("VERBOSE_TOOLS"))
+	return v == "1" || strings.EqualFold(v, "true") || strings.EqualFold(v, "yes")
+}
+
+func print_tool_calls(tool_calls []ToolCall) {
+	if !verbose_tools() {
+		return
+	}
+	fmt.Println(promptSeparator)
+	fmt.Println("Agent called tools:")
+	for _, tc := range tool_calls {
+		fmt.Printf("  - %s(%s)\n", tc.Function.Name, tc.Function.Arguments)
+	}
+}
+
 func read_system_prompt(messages *[]Message) {
 	// Read the entire file into memory
 	content, err := os.ReadFile("system.md")
@@ -51,6 +67,7 @@ func handle_response(response ChatCompletionResponse, messages *[]Message, is_to
 		assistantMsg := Message{Role: "assistant", ToolCalls: tool_calls}
 		*messages = append(*messages, assistantMsg)
 		track_context_usage(contextUsage, assistantMsg)
+		print_tool_calls(tool_calls)
 
 		for index, tool_response := range tool_responses {
 			toolMsg := Message{Role: "tool", ToolCallID: tool_calls[index].ID, Content: tool_response}
