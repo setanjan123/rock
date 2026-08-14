@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -34,9 +35,12 @@ func main() {
 
 	if len(os.Args) > 1 {
 		conversationID = os.Args[1]
-		messages, err = load_conversation(db, conversationID)
+		messages, storedModel, err := load_conversation(db, conversationID)
 		if err != nil {
 			log.Fatalf("failed to resume conversation %q: %v", conversationID, err)
+		}
+		if storedModel != "" {
+			model = storedModel
 		}
 		fmt.Println("Resumed conversation", conversationID)
 		print_conversation(messages)
@@ -58,20 +62,36 @@ func main() {
 			fmt.Println(promptSeparator)
 			fmt.Println("Current context: ", get_context_usage(contextUsage))
 			fmt.Println("Conversation: ", conversationID)
+			fmt.Println("Model: ", model)
 			fmt.Println(promptSeparator)
 			fmt.Print("You › ")
 			if scanner.Scan() {
 				input = scanner.Text()
-				switch input {
-				case "/exit":
-					if err := save_conversation(db, conversationID, messages); err != nil {
+				switch {
+				case input == "/exit":
+					if err := save_conversation(db, conversationID, model, messages); err != nil {
 						fmt.Println("Failed to save conversation:", err)
 					} else {
 						fmt.Println("Saved as", conversationID, "- resume with: rock", conversationID)
 					}
 					return
-				case "/history":
+				case input == "/history":
 					print_history(db, conversationID)
+					continue
+				case input == "/model":
+					if err := select_model(apiKey, baseURL, &model, scanner); err != nil {
+						fmt.Println("Failed to switch model:", err)
+					} else if err := save_conversation(db, conversationID, model, messages); err != nil {
+						fmt.Println("Failed to persist model choice:", err)
+					}
+					continue
+				case strings.HasPrefix(input, "/model "):
+					choice := strings.TrimSpace(strings.TrimPrefix(input, "/model "))
+					if err := switch_model(apiKey, baseURL, &model, choice); err != nil {
+						fmt.Println("Failed to switch model:", err)
+					} else if err := save_conversation(db, conversationID, model, messages); err != nil {
+						fmt.Println("Failed to persist model choice:", err)
+					}
 					continue
 				}
 			}
@@ -100,7 +120,7 @@ func main() {
 		}
 
 		if !is_toolcall_continue {
-			if err := save_conversation(db, conversationID, messages); err != nil {
+			if err := save_conversation(db, conversationID, model, messages); err != nil {
 				fmt.Println("Failed to save conversation:", err)
 			}
 		}
@@ -176,7 +196,7 @@ func call_ai(messages *[]Message, apiKey *string, baseURL *string, model *string
 
 	responseBody := bytes.NewBuffer(postBody)
 	//Leverage Go's HTTP Post function to make request
-	resp, err := http.NewRequest(http.MethodPost, *baseURL, responseBody)
+	resp, err := http.NewRequest(http.MethodPost, chat_completions_url(*baseURL), responseBody)
 	if err != nil {
 		return chatResponse, err
 	}

@@ -40,6 +40,7 @@ func migrate(db *sql.DB) error {
 		CREATE TABLE IF NOT EXISTS conversations (
 			id         TEXT PRIMARY KEY,
 			title      TEXT NOT NULL,
+			model      TEXT NOT NULL DEFAULT '',
 			created_at INTEGER NOT NULL,
 			updated_at INTEGER NOT NULL,
 			messages   TEXT NOT NULL
@@ -78,7 +79,7 @@ func derive_title(messages []Message) string {
 	return "untitled"
 }
 
-func save_conversation(db *sql.DB, id string, messages []Message) error {
+func save_conversation(db *sql.DB, id string, model string, messages []Message) error {
 	encoded, err := json.Marshal(messages)
 	if err != nil {
 		return err
@@ -88,32 +89,34 @@ func save_conversation(db *sql.DB, id string, messages []Message) error {
 	now := time.Now().Unix()
 
 	_, err = db.Exec(`
-		INSERT INTO conversations (id, title, created_at, updated_at, messages)
-		VALUES (?, ?, ?, ?, ?)
+		INSERT INTO conversations (id, title, model, created_at, updated_at, messages)
+		VALUES (?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			title = excluded.title,
+			model = excluded.model,
 			updated_at = excluded.updated_at,
 			messages = excluded.messages
-	`, id, title, now, now, string(encoded))
+	`, id, title, model, now, now, string(encoded))
 
 	return err
 }
 
-func load_conversation(db *sql.DB, id string) ([]Message, error) {
+func load_conversation(db *sql.DB, id string) ([]Message, string, error) {
 	var encoded string
-	err := db.QueryRow(`SELECT messages FROM conversations WHERE id = ?`, id).Scan(&encoded)
+	var model string
+	err := db.QueryRow(`SELECT messages, model FROM conversations WHERE id = ?`, id).Scan(&encoded, &model)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, errConversationNotFound
+		return nil, "", errConversationNotFound
 	}
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	var messages []Message
 	if err := json.Unmarshal([]byte(encoded), &messages); err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	return messages, nil
+	return messages, model, nil
 }
 
 func list_conversations(db *sql.DB) ([]ConversationSummary, error) {

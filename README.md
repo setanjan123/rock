@@ -55,7 +55,7 @@ Configure the following environment variables. They can be set directly in your 
 ```dotenv
 # Required
 API_KEY=your-api-key
-API_BASE_URL=your-openai-compatible-chat-completions-url
+API_BASE_URL=your-openai-compatible-base-url
 MODEL=your-model-name
 
 # Optional
@@ -63,10 +63,13 @@ CONTEXT_LIMIT=32768
 VERBOSE_TOOLS=1
 ```
 
+`API_BASE_URL` is the base URL only, without a trailing slash and without the
+API path. Rock appends `/v1/chat/completions` and `/v1/models` dynamically.
+
 For a local Ollama setup, the URL is commonly similar to:
 
 ```dotenv
-API_BASE_URL=http://localhost:11434/v1/chat/completions
+API_BASE_URL=http://localhost:11434
 ```
 
 Install dependencies and run Rock:
@@ -84,6 +87,7 @@ conversation gets a short generated id that is printed on startup and on exit.
 - Start a new conversation: `go run .`
 - Resume a conversation: `go run . <id>` (the id is shown when starting and exiting)
 - List past conversations during a session: `/history`
+- List and switch models during a session: `/model` (or `/model <model-id>`)
 - Leave and save: `/exit`
 
 Set `VERBOSE_TOOLS=1` to print tool names, arguments, and results as they run
@@ -93,6 +97,12 @@ are executed silently.
 The system prompt is captured when a conversation starts. On resume, Rock loads
 the full stored history instead of reading `system.md` again, so the resumed
 conversation is an exact continuation.
+
+The active model is also saved per conversation. New conversations start from
+the `MODEL` environment variable; switching models with `/model` updates only
+the current conversation, and resuming that conversation restores its chosen
+model. Model listing requires the backend to expose `GET {base}/models` (Ollama
+and most OpenAI-compatible servers do).
 
 ## Available tools
 

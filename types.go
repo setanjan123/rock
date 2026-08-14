@@ -99,3 +99,11 @@ type ToolCallResponse struct {
 	Response string
 	Error    error
 }
+
+type ModelsListResponse struct {
+	Object string `json:"object"`
+	Data   []struct {
+		ID string `json:"id"`
+	} `json:"data"`
+}
+

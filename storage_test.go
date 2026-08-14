@@ -40,13 +40,16 @@ func TestSaveAndLoadConversation(t *testing.T) {
 		{Role: "tool", ToolCallID: "call_1", Content: "package main"},
 	}
 
-	if err := save_conversation(db, "abc123", messages); err != nil {
+	if err := save_conversation(db, "abc123", "test-model", messages); err != nil {
 		t.Fatalf("save_conversation failed: %v", err)
 	}
 
-	got, err := load_conversation(db, "abc123")
+	got, gotModel, err := load_conversation(db, "abc123")
 	if err != nil {
 		t.Fatalf("load_conversation failed: %v", err)
+	}
+	if gotModel != "test-model" {
+		t.Fatalf("loaded model = %q, want %q", gotModel, "test-model")
 	}
 
 	if len(got) != len(messages) {
@@ -68,7 +71,7 @@ func TestSaveAndLoadConversation(t *testing.T) {
 func TestLoadMissingConversation(t *testing.T) {
 	db := test_db(t)
 
-	_, err := load_conversation(db, "nope")
+	_, _, err := load_conversation(db, "nope")
 	if !errors.Is(err, errConversationNotFound) {
 		t.Fatalf("load_conversation error = %v, want errConversationNotFound", err)
 	}
@@ -78,7 +81,7 @@ func TestSaveConversationUpdatesExisting(t *testing.T) {
 	db := test_db(t)
 
 	first := []Message{{Role: "user", Content: "hello"}}
-	if err := save_conversation(db, "id1", first); err != nil {
+	if err := save_conversation(db, "id1", "first-model", first); err != nil {
 		t.Fatalf("first save failed: %v", err)
 	}
 
@@ -86,13 +89,16 @@ func TestSaveConversationUpdatesExisting(t *testing.T) {
 		{Role: "user", Content: "hello"},
 		{Role: "assistant", Content: "hi there"},
 	}
-	if err := save_conversation(db, "id1", second); err != nil {
+	if err := save_conversation(db, "id1", "second-model", second); err != nil {
 		t.Fatalf("second save failed: %v", err)
 	}
 
-	got, err := load_conversation(db, "id1")
+	got, gotModel, err := load_conversation(db, "id1")
 	if err != nil {
 		t.Fatalf("load after update failed: %v", err)
+	}
+	if gotModel != "second-model" {
+		t.Fatalf("loaded model = %q, want %q", gotModel, "second-model")
 	}
 	if len(got) != len(second) {
 		t.Fatalf("loaded %d messages after update, want %d", len(got), len(second))
@@ -111,7 +117,7 @@ func TestListConversationsOrdering(t *testing.T) {
 	db := test_db(t)
 
 	for _, id := range []string{"a", "b", "c"} {
-		if err := save_conversation(db, id, []Message{{Role: "user", Content: id}}); err != nil {
+		if err := save_conversation(db, id, "model-"+id, []Message{{Role: "user", Content: id}}); err != nil {
 			t.Fatalf("save %s failed: %v", id, err)
 		}
 	}
