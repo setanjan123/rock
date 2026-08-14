@@ -80,15 +80,12 @@ go build -o rock .
 ./rock
 ```
 
-On Windows, build with the explicit output name and run it:
+On Windows
 
 ```powershell
 go build -o rock.exe .
 .\rock.exe
 ```
-
-Without `-o`, the binary is named after the Go module (`rockcli` or
-`rockcli.exe`). `go run .` is a convenient shortcut during development.
 
 ### Sessions
 
