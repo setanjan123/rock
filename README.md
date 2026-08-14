@@ -72,20 +72,31 @@ For a local Ollama setup, the URL is commonly similar to:
 API_BASE_URL=http://localhost:11434
 ```
 
-Install dependencies and run Rock:
+Install dependencies, build the binary, and run it:
 
 ```bash
 go mod tidy
-go run .
+go build -o rock .
+./rock
 ```
+
+On Windows, build with the explicit output name and run it:
+
+```powershell
+go build -o rock.exe .
+.\rock.exe
+```
+
+Without `-o`, the binary is named after the Go module (`rockcli` or
+`rockcli.exe`). `go run .` is a convenient shortcut during development.
 
 ### Sessions
 
 Rock saves every completed turn to `rock.db` in the current directory. Each
 conversation gets a short generated id that is printed on startup and on exit.
 
-- Start a new conversation: `go run .`
-- Resume a conversation: `go run . <id>` (the id is shown when starting and exiting)
+- Start a new conversation: `./rock` (or `.\rock.exe` on Windows)
+- Resume a conversation: `./rock <id>` (the id is shown when starting and exiting)
 - List past conversations during a session: `/history`
 - List and switch models during a session: `/model` (or `/model <model-id>`)
 - Leave and save: `/exit`
